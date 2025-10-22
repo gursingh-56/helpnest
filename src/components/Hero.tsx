@@ -33,10 +33,9 @@ const Hero = () => {
           <Button 
             variant="hero" 
             size="xl"
-            className="animate-pulse"
             asChild
           >
-            <a href="https://glitchy.go2cloud.org/aff_c?offer_id=3261&aff_id=25100&url_id=3">
+            <a href="https://glitchy.go2cloud.org/aff_c?offer_id=3261&aff_id=146262">
               Start Earning Now
             </a>
           </Button>
