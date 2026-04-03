@@ -8,9 +8,9 @@ export function Home() {
         <h1 className="text-5xl md:text-7xl font-bold tracking-tighter max-w-4xl mb-8 leading-[0.95]">
           Master <span className="text-gradient">X-Ray Positioning</span> with Interactive Clarity
         </h1>
-        <div className="flex gap-6 mb-16">
-          <a href="https://github.com/gursingh-56/helpnest/releases/download/v1.0.1/radia.apk" target="_blank" rel="noopener noreferrer" className="btn-primary text-on-primary px-8 py-4 rounded-md font-bold text-lg flex items-center gap-3 active:scale-95 transition-transform cursor-pointer">
-            <span className="material-symbols-outlined text-2xl">shop</span>
+        <div className="flex gap-6 mb-16 relative z-10">
+          <a href="https://github.com/gursingh-56/helpnest/releases/download/v1.0.1/radia.apk" className="btn-primary text-on-primary px-8 py-4 rounded-md font-bold text-lg flex items-center gap-3 active:scale-95 transition-transform cursor-pointer">
+            <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor"><path d="M3.609 1.814L13.792 12 3.61 22.186a.996.996 0 0 1-.61-.92V2.734a1 1 0 0 1 .609-.92zm10.89 10.893l2.302 2.302-10.937 6.333 8.635-8.635zm3.199-3.199l2.807 1.626a1 1 0 0 1 0 1.732l-2.807 1.626L15.206 12l2.492-2.492zM5.864 2.658L16.8 8.99l-2.302 2.302-8.634-8.634z"/></svg>
             Download
           </a>
         </div>
