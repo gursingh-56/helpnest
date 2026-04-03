@@ -1,0 +1,109 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Space Grotesk", sans-serif;
+  --font-headline: "Space Grotesk", sans-serif;
+  --font-body: "Space Grotesk", sans-serif;
+  --font-label: "Space Grotesk", sans-serif;
+
+  --color-primary: #97d3b7;
+  --color-primary-dim: #154433;
+  --color-primary-container: #1b5842;
+  --color-on-primary: #003827;
+  --color-on-primary-container: #d1e8df;
+  
+  --color-secondary: #b9cbc1;
+  --color-tertiary: #ffb3af;
+  
+  --color-surface: #101412;
+  --color-surface-container-lowest: #0b0f0d;
+  --color-surface-container-low: #181c1a;
+  --color-surface-container: #1c201e;
+  --color-surface-container-high: #272b29;
+  --color-surface-container-highest: #323633;
+  --color-surface-bright: #363a38;
+  
+  --color-on-surface: #e0e3df;
+  --color-on-surface-variant: #bfc9c2;
+  
+  --color-outline: #8a938d;
+  --color-outline-variant: #404944;
+  
+  --color-background: #101412;
+  --color-on-background: #e0e3df;
+}
+
+@layer base {
+  body {
+    @apply bg-background text-on-background font-sans antialiased;
+  }
+}
+
+@layer utilities {
+  .material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  }
+  
+  .glass-panel {
+    background: rgba(16, 20, 18, 0.8);
+    backdrop-filter: blur(20px);
+  }
+  
+  .glass-card {
+    background: rgba(15, 24, 20, 0.7);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(27, 88, 66, 0.1);
+  }
+
+  .text-gradient {
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-container) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  
+  .btn-primary {
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-container) 100%);
+  }
+
+  .obsidian-grain {
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+    opacity: 0.03;
+    pointer-events: none;
+  }
+  
+  .forest-gradient {
+    background: radial-gradient(circle at top right, rgba(27, 88, 66, 0.15), transparent 40%),
+                radial-gradient(circle at bottom left, rgba(27, 88, 66, 0.05), transparent 40%);
+  }
+
+  .forest-glow {
+    background: radial-gradient(circle at center, rgba(27, 88, 66, 0.15) 0%, transparent 70%);
+  }
+}
+
+/* Custom component styles that don't fit well in utilities */
+.mobile-frame {
+  position: relative;
+  width: 320px;
+  height: 650px;
+  margin: 0 auto;
+  border: 12px solid var(--color-surface-container);
+  border-radius: 40px;
+  overflow: hidden;
+  box-shadow: 0 0 50px rgba(27, 88, 66, 0.3), 0 20px 40px rgba(0,0,0,0.4);
+  background: #000;
+}
+
+.mobile-frame::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 150px;
+  height: 25px;
+  background: var(--color-surface-container);
+  border-bottom-left-radius: 18px;
+  border-bottom-right-radius: 18px;
+  z-index: 10;
+}
