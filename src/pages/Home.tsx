@@ -77,7 +77,7 @@ export function Home() {
           <div className="absolute inset-0 opacity-20" style={{backgroundImage: "radial-gradient(var(--color-primary) 0.5px, transparent 0.5px)", backgroundSize: "24px 24px"}}></div>
           <h2 className="text-5xl font-bold tracking-tighter mb-8 relative z-10">Step into the Light.</h2>
           <div className="relative z-10">
-            <button className="btn-primary text-on-primary px-10 py-5 rounded-md font-bold text-xl active:scale-95 transition-transform">Get Started</button>
+            <a href="https://github.com/gursingh-56/helpnest/releases/download/v1.0.1/radia.apk" download className="btn-primary text-on-primary px-10 py-5 rounded-md font-bold text-xl active:scale-95 transition-transform">Get Started</a>
           </div>
         </div>
       </section>
