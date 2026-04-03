@@ -9,7 +9,7 @@ export function Home() {
           Master <span className="text-gradient">X-Ray Positioning</span> with Interactive Clarity
         </h1>
         <div className="flex gap-6 mb-16">
-          <a href="https://github.com/gursingh-56/helpnest/releases/download/v1.0.1/radia.apk" download className="btn-primary text-on-primary px-8 py-4 rounded-md font-bold text-lg flex items-center gap-3 active:scale-95 transition-transform">
+          <a href="https://github.com/gursingh-56/helpnest/releases/download/v1.0.1/radia.apk" target="_blank" rel="noopener noreferrer" className="btn-primary text-on-primary px-8 py-4 rounded-md font-bold text-lg flex items-center gap-3 active:scale-95 transition-transform cursor-pointer">
             <span className="material-symbols-outlined text-2xl">shop</span>
             Download
           </a>
