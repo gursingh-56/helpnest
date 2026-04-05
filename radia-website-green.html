@@ -1,0 +1,2695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Radia — AI-Powered Radiology Education</title>
+  <meta name="description" content="Master Radiology with AI. Live video positioning correction, AI tutor, and real-time skeletal mapping for radiology students worldwide." />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Sora:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <!-- Three.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+  <!-- GSAP (scroll + animation) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+
+  <style>
+    /* ============================================
+       CSS CUSTOM PROPERTIES — GREEN PALETTE
+    ============================================ */
+    :root {
+      /* Backgrounds: deep forest greens */
+      --bg-void: #010D08;
+      --bg-deep: #021409;
+      --bg-surface: #041D0E;
+      --bg-card: rgba(6, 40, 20, 0.6);
+
+      /* Green spectrum */
+      --green-primary: #00A86B;      /* emerald / jade */
+      --green-bright: #00FF88;       /* neon mint — primary accent */
+      --green-lime: #39FF14;         /* electric lime — highlights */
+      --green-forest: #2D6A4F;       /* deep forest */
+      --green-sage: #52B788;         /* mid-sage */
+      --green-teal: #00C9A7;         /* teal-green */
+
+      --bright-dim: rgba(0, 255, 136, 0.15);
+      --bright-mid: rgba(0, 255, 136, 0.4);
+
+      --white: #EDFFF5;
+      --muted: #5A8A6E;
+      --border: rgba(0, 255, 136, 0.12);
+
+      --glow-strong: 0 0 40px rgba(0, 255, 136, 0.35), 0 0 80px rgba(0, 168, 107, 0.2);
+      --glow-soft: 0 0 20px rgba(0, 255, 136, 0.15);
+
+      --font-display: 'Orbitron', monospace;
+      --font-body: 'Sora', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    /* ============================================
+       RESET & BASE
+    ============================================ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--bg-void);
+      color: var(--white);
+      font-family: var(--font-body);
+      overflow-x: hidden;
+      cursor: none;
+    }
+    ::selection { background: var(--bright-dim); color: var(--green-bright); }
+
+    /* ============================================
+       CUSTOM CURSOR
+    ============================================ */
+    #cursor {
+      position: fixed;
+      width: 20px; height: 20px;
+      border: 2px solid var(--green-bright);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 9999;
+      transition: transform 0.15s ease, opacity 0.15s ease;
+      mix-blend-mode: difference;
+    }
+    #cursor-dot {
+      position: fixed;
+      width: 5px; height: 5px;
+      background: var(--green-bright);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 9999;
+      box-shadow: 0 0 8px var(--green-bright);
+      transition: transform 0.05s ease;
+    }
+    #cursor.active { transform: scale(2.5); opacity: 0.5; }
+
+    /* ============================================
+       SCROLLBAR
+    ============================================ */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: var(--bg-void); }
+    ::-webkit-scrollbar-thumb { background: var(--bright-mid); border-radius: 2px; }
+
+    /* ============================================
+       UTILITY CLASSES
+    ============================================ */
+    .font-display { font-family: var(--font-display); }
+    .font-mono { font-family: var(--font-mono); }
+
+    .text-green { color: var(--green-bright); }
+    .text-muted { color: var(--muted); }
+
+    .glow-text {
+      text-shadow: 0 0 20px rgba(0,255,136,0.6), 0 0 60px rgba(0,255,136,0.2);
+    }
+    .glow-border {
+      border: 1px solid var(--border);
+      box-shadow: var(--glow-soft);
+    }
+    .glass {
+      background: var(--bg-card);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--border);
+    }
+
+    .section-label {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      letter-spacing: 0.3em;
+      color: var(--green-bright);
+      text-transform: uppercase;
+      opacity: 0.8;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    .animate-on-scroll {
+      opacity: 0;
+      transform: translateY(30px);
+      transition: opacity 0.7s ease, transform 0.7s ease;
+    }
+    .animate-on-scroll.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Animations */
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-16px); }
+    }
+    @keyframes floatSlow {
+      0%, 100% { transform: translateY(0px) rotate(0deg); }
+      50% { transform: translateY(-24px) rotate(3deg); }
+    }
+    @keyframes pulse-glow {
+      0%, 100% { box-shadow: 0 0 20px rgba(0,255,136,0.2); }
+      50% { box-shadow: 0 0 60px rgba(0,255,136,0.5), 0 0 100px rgba(0,168,107,0.3); }
+    }
+    @keyframes scanline {
+      0% { transform: translateY(-100%); opacity: 0; }
+      10% { opacity: 1; }
+      90% { opacity: 1; }
+      100% { transform: translateY(100vh); opacity: 0; }
+    }
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+    @keyframes shimmer {
+      0% { background-position: -200% center; }
+      100% { background-position: 200% center; }
+    }
+    @keyframes ring-pulse {
+      0% { transform: scale(1); opacity: 0.6; }
+      100% { transform: scale(2.5); opacity: 0; }
+    }
+    @keyframes data-scroll {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes gradient-shift {
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+    }
+
+    /* ============================================
+       NOISE OVERLAY
+    ============================================ */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 1;
+      opacity: 0.4;
+    }
+
+    /* ============================================
+       NAVIGATION
+    ============================================ */
+    #navbar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 1000;
+      padding: 18px 0;
+      transition: all 0.4s ease;
+    }
+    #navbar.scrolled {
+      background: rgba(1, 13, 8, 0.95);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 0;
+    }
+    .nav-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+    }
+    .nav-logo-icon {
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, var(--green-primary), var(--green-bright));
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-display);
+      font-size: 0.75rem;
+      font-weight: 900;
+      color: var(--bg-void);
+      box-shadow: 0 0 20px rgba(0,255,136,0.3);
+    }
+    .nav-logo-text {
+      font-family: var(--font-display);
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--white);
+      letter-spacing: 0.1em;
+    }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 36px;
+      list-style: none;
+    }
+    .nav-links a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+      transition: color 0.3s;
+    }
+    .nav-links a:hover { color: var(--green-bright); }
+    .nav-cta {
+      background: linear-gradient(135deg, var(--green-primary), var(--green-bright)) !important;
+      color: var(--bg-void) !important;
+      padding: 10px 22px !important;
+      border-radius: 8px !important;
+      font-weight: 700 !important;
+      font-family: var(--font-display) !important;
+      font-size: 0.75rem !important;
+      letter-spacing: 0.1em !important;
+      transition: all 0.3s !important;
+      box-shadow: 0 0 20px rgba(0,255,136,0.3);
+    }
+    .nav-cta:hover { box-shadow: var(--glow-strong) !important; transform: translateY(-2px); }
+    #mobile-menu-btn {
+      display: none;
+      flex-direction: column;
+      gap: 5px;
+      cursor: pointer;
+      padding: 5px;
+    }
+    #mobile-menu-btn span {
+      display: block;
+      width: 24px; height: 2px;
+      background: var(--green-bright);
+      border-radius: 1px;
+      transition: all 0.3s;
+    }
+    #mobile-menu {
+      display: none;
+      position: absolute;
+      top: 100%; left: 0; right: 0;
+      background: rgba(2, 20, 9, 0.98);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+      padding: 20px 24px;
+    }
+    #mobile-menu.open { display: block; }
+    #mobile-menu a {
+      display: block;
+      padding: 12px 0;
+      color: var(--muted);
+      text-decoration: none;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.9rem;
+      transition: color 0.3s;
+    }
+    #mobile-menu a:hover { color: var(--green-bright); }
+
+    @media (max-width: 768px) {
+      .nav-links { display: none; }
+      #mobile-menu-btn { display: flex; }
+    }
+
+    /* ============================================
+       HERO SECTION
+    ============================================ */
+    #hero {
+      position: relative;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      overflow: hidden;
+    }
+    #hero-canvas {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+    }
+    .hero-grid-overlay {
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,255,136,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,255,136,0.03) 1px, transparent 1px);
+      background-size: 60px 60px;
+      z-index: 1;
+      mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 40%, transparent 100%);
+    }
+    .hero-scan-line {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--green-bright), transparent);
+      animation: scanline 6s linear infinite;
+      z-index: 2;
+      opacity: 0.4;
+    }
+    .hero-content {
+      position: relative;
+      z-index: 10;
+      width: 100%;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 120px 24px 80px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      align-items: center;
+      gap: 60px;
+    }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      background: rgba(0, 255, 136, 0.08);
+      border: 1px solid rgba(0, 255, 136, 0.25);
+      border-radius: 100px;
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      color: var(--green-bright);
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      margin-bottom: 28px;
+      animation: fadeInUp 0.8s ease forwards;
+    }
+    .hero-badge::before {
+      content: '';
+      width: 6px; height: 6px;
+      background: var(--green-bright);
+      border-radius: 50%;
+      box-shadow: 0 0 8px var(--green-bright);
+      animation: blink 2s ease infinite;
+    }
+    .hero-headline {
+      font-family: var(--font-display);
+      font-size: clamp(2.4rem, 5vw, 4rem);
+      font-weight: 900;
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+      margin-bottom: 20px;
+      animation: fadeInUp 0.8s 0.15s ease both;
+    }
+    .hero-headline .line-accent {
+      background: linear-gradient(135deg, var(--green-bright), var(--green-lime), var(--green-teal), var(--green-bright));
+      background-size: 300% auto;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: shimmer 4s linear infinite;
+    }
+    .hero-tagline {
+      font-size: 1.1rem;
+      color: var(--muted);
+      line-height: 1.7;
+      max-width: 460px;
+      margin-bottom: 40px;
+      animation: fadeInUp 0.8s 0.3s ease both;
+    }
+    .hero-tagline strong { color: var(--white); }
+    .hero-cta-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 48px;
+      animation: fadeInUp 0.8s 0.45s ease both;
+    }
+
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 16px 32px;
+      background: linear-gradient(135deg, var(--green-primary) 0%, var(--green-bright) 100%);
+      color: var(--bg-void);
+      font-family: var(--font-display);
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-decoration: none;
+      border-radius: 12px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 0 30px rgba(0,255,136,0.3), 0 8px 32px rgba(0,168,107,0.3);
+      animation: pulse-glow 3s ease infinite;
+      position: relative;
+      overflow: hidden;
+    }
+    .btn-primary::before {
+      content: '';
+      position: absolute;
+      top: 0; left: -100%;
+      width: 100%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+      transition: left 0.5s ease;
+    }
+    .btn-primary:hover::before { left: 100%; }
+    .btn-primary:hover {
+      transform: translateY(-3px) scale(1.02);
+      box-shadow: var(--glow-strong), 0 16px 48px rgba(0,168,107,0.4);
+    }
+    .btn-secondary {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 16px 28px;
+      background: transparent;
+      color: var(--white);
+      font-family: var(--font-display);
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-decoration: none;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    .btn-secondary:hover {
+      border-color: var(--green-bright);
+      color: var(--green-bright);
+      box-shadow: var(--glow-soft);
+      transform: translateY(-2px);
+    }
+
+    .hero-trust { animation: fadeInUp 0.8s 0.6s ease both; }
+    .hero-trust-label {
+      font-size: 0.75rem;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      margin-bottom: 14px;
+    }
+    .trust-logos {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+    .trust-logo {
+      padding: 8px 16px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 8px;
+      font-family: var(--font-display);
+      font-size: 0.6rem;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      color: rgba(255,255,255,0.35);
+      text-transform: uppercase;
+      transition: all 0.3s;
+    }
+    .trust-logo:hover { border-color: var(--border); color: var(--muted); }
+
+    .hero-stat-pills {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .stat-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      background: rgba(0,255,136,0.06);
+      border: 1px solid rgba(0,255,136,0.15);
+      border-radius: 100px;
+    }
+    .stat-pill-num {
+      font-family: var(--font-display);
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--green-bright);
+    }
+    .stat-pill-label { font-size: 0.72rem; color: var(--muted); }
+
+    /* Hero Right — Phone Mockup */
+    .hero-right {
+      position: relative;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      animation: fadeInUp 0.8s 0.3s ease both;
+    }
+    .hero-phone-wrap {
+      position: relative;
+      animation: floatSlow 6s ease-in-out infinite;
+    }
+    .hero-ring {
+      position: absolute;
+      border-radius: 50%;
+      border: 1px solid rgba(0,255,136,0.2);
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+    }
+    .hero-ring:nth-child(1) { width: 300px; height: 300px; animation: ring-pulse 3s 0s ease infinite; }
+    .hero-ring:nth-child(2) { width: 420px; height: 420px; animation: ring-pulse 3s 1s ease infinite; }
+    .hero-ring:nth-child(3) { width: 540px; height: 540px; animation: ring-pulse 3s 2s ease infinite; }
+
+    .phone-shell {
+      position: relative;
+      width: 240px;
+      background: linear-gradient(145deg, #0a1f12, #041508);
+      border-radius: 36px;
+      padding: 10px;
+      border: 1px solid rgba(255,255,255,0.12);
+      box-shadow:
+        0 0 0 1px rgba(0,0,0,0.5),
+        0 40px 80px rgba(0,0,0,0.6),
+        inset 0 1px 0 rgba(255,255,255,0.08);
+      z-index: 10;
+    }
+    .phone-screen {
+      background: #010d06;
+      border-radius: 28px;
+      overflow: hidden;
+      aspect-ratio: 9/19;
+      position: relative;
+    }
+    .phone-notch {
+      position: absolute;
+      top: 10px; left: 50%;
+      transform: translateX(-50%);
+      width: 80px; height: 24px;
+      background: #000;
+      border-radius: 12px;
+      z-index: 5;
+    }
+    .phone-ui { width: 100%; height: 100%; display: flex; flex-direction: column; }
+    .phone-header {
+      background: linear-gradient(180deg, rgba(0,255,136,0.08), transparent);
+      padding: 36px 12px 12px;
+      border-bottom: 1px solid rgba(0,255,136,0.1);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .phone-header-logo {
+      font-family: var(--font-display);
+      font-size: 0.6rem;
+      font-weight: 700;
+      color: var(--green-bright);
+      letter-spacing: 0.2em;
+    }
+    .phone-status {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-family: var(--font-mono);
+      font-size: 0.45rem;
+      color: var(--green-bright);
+    }
+    .phone-status::before {
+      content: '';
+      width: 5px; height: 5px;
+      background: var(--green-bright);
+      border-radius: 50%;
+      box-shadow: 0 0 6px var(--green-bright);
+      animation: blink 1.5s ease infinite;
+    }
+    .phone-camera-view {
+      flex: 1;
+      position: relative;
+      background: #061209;
+      overflow: hidden;
+    }
+    .camera-body-outline {
+      position: absolute;
+      inset: 10px;
+      border: 1.5px solid rgba(0,255,136,0.3);
+      border-radius: 4px;
+    }
+    .camera-scan-h {
+      position: absolute;
+      left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--green-bright), transparent);
+      animation: scanline 2.5s linear infinite;
+      opacity: 0.7;
+    }
+    .ai-overlay-box {
+      position: absolute;
+      top: 20%; left: 15%;
+      width: 70%; height: 55%;
+      border: 1.5px solid var(--green-bright);
+      border-radius: 4px;
+      box-shadow: 0 0 12px rgba(0,255,136,0.3);
+    }
+    .ai-overlay-box::before, .ai-overlay-box::after {
+      content: '';
+      position: absolute;
+      width: 10px; height: 10px;
+      border-color: var(--green-bright);
+      border-style: solid;
+    }
+    .ai-overlay-box::before { top: -2px; left: -2px; border-width: 2px 0 0 2px; }
+    .ai-overlay-box::after { bottom: -2px; right: -2px; border-width: 0 2px 2px 0; }
+    .ai-dot { position: absolute; width: 4px; height: 4px; background: var(--green-bright); border-radius: 50%; box-shadow: 0 0 6px var(--green-bright); }
+
+    .phone-ai-bar {
+      padding: 8px 12px;
+      background: rgba(0,255,136,0.06);
+      border-top: 1px solid rgba(0,255,136,0.1);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .phone-ai-icon {
+      width: 20px; height: 20px;
+      background: linear-gradient(135deg, var(--green-primary), var(--green-bright));
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.45rem;
+      color: var(--bg-void);
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .phone-ai-text {
+      font-family: var(--font-mono);
+      font-size: 0.42rem;
+      color: var(--green-bright);
+      line-height: 1.5;
+    }
+
+    /* Floating data chips */
+    .floating-chip {
+      position: absolute;
+      background: rgba(6, 40, 20, 0.85);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(0,255,136,0.2);
+      border-radius: 10px;
+      padding: 8px 12px;
+      z-index: 20;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4), 0 0 16px rgba(0,255,136,0.1);
+    }
+    .chip-1 { top: 10%; left: -30%; animation: float 4s 0s ease-in-out infinite; }
+    .chip-2 { top: 50%; right: -25%; animation: float 4s 1.5s ease-in-out infinite; }
+    .chip-3 { bottom: 15%; left: -20%; animation: float 4s 0.8s ease-in-out infinite; }
+    .chip-label {
+      font-family: var(--font-mono);
+      font-size: 0.6rem;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      margin-bottom: 2px;
+    }
+    .chip-value {
+      font-family: var(--font-display);
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--green-bright);
+    }
+
+    @media (max-width: 900px) {
+      .hero-content { grid-template-columns: 1fr; text-align: center; }
+      .hero-right { margin-top: 40px; }
+      .hero-cta-row { justify-content: center; }
+      .hero-stat-pills { justify-content: center; }
+      .trust-logos { justify-content: center; }
+      .chip-1, .chip-2, .chip-3 { display: none; }
+    }
+
+    /* ============================================
+       DATA TICKER
+    ============================================ */
+    .data-ticker {
+      background: rgba(0,255,136,0.04);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 0;
+      overflow: hidden;
+      position: relative;
+    }
+    .ticker-track {
+      display: flex;
+      gap: 60px;
+      animation: data-scroll 25s linear infinite;
+      width: max-content;
+    }
+    .ticker-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      white-space: nowrap;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: var(--muted);
+    }
+    .ticker-item .dot { color: var(--green-bright); font-size: 1rem; }
+
+    /* ============================================
+       HOW IT WORKS
+    ============================================ */
+    .section {
+      padding: 100px 0;
+      position: relative;
+    }
+    .section-header {
+      text-align: center;
+      margin-bottom: 70px;
+    }
+    .section-title {
+      font-family: var(--font-display);
+      font-size: clamp(1.8rem, 4vw, 2.8rem);
+      font-weight: 700;
+      line-height: 1.2;
+      margin: 12px 0 16px;
+      letter-spacing: -0.02em;
+    }
+    .section-subtitle {
+      font-size: 1rem;
+      color: var(--muted);
+      max-width: 500px;
+      margin: 0 auto;
+      line-height: 1.7;
+    }
+
+    .steps-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+      position: relative;
+    }
+    .steps-grid::before {
+      content: '';
+      position: absolute;
+      top: 60px; left: calc(16.6% + 12px); right: calc(16.6% + 12px);
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--green-bright), transparent);
+      opacity: 0.3;
+    }
+    .step-card {
+      background: var(--bg-card);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 36px 28px;
+      position: relative;
+      transition: all 0.4s ease;
+      cursor: pointer;
+      overflow: hidden;
+    }
+    .step-card::before {
+      content: '';
+      position: absolute;
+      inset: -1px;
+      border-radius: 20px;
+      background: linear-gradient(135deg, transparent, rgba(0,255,136,0.08), transparent);
+      opacity: 0;
+      transition: opacity 0.4s;
+    }
+    .step-card:hover { transform: translateY(-8px); border-color: rgba(0,255,136,0.3); }
+    .step-card:hover::before { opacity: 1; }
+    .step-card:hover .step-icon-wrap { box-shadow: 0 0 40px rgba(0,255,136,0.4); }
+
+    .step-number {
+      font-family: var(--font-display);
+      font-size: 0.65rem;
+      font-weight: 700;
+      color: var(--green-bright);
+      letter-spacing: 0.3em;
+      margin-bottom: 20px;
+      opacity: 0.6;
+    }
+    .step-icon-wrap {
+      width: 64px; height: 64px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, rgba(0,168,107,0.2), rgba(0,255,136,0.1));
+      border: 1px solid rgba(0,255,136,0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.6rem;
+      margin-bottom: 24px;
+      transition: box-shadow 0.4s;
+    }
+    .step-title {
+      font-family: var(--font-display);
+      font-size: 0.95rem;
+      font-weight: 700;
+      margin-bottom: 12px;
+      letter-spacing: 0.03em;
+    }
+    .step-desc { font-size: 0.88rem; color: var(--muted); line-height: 1.7; }
+
+    @media (max-width: 768px) {
+      .steps-grid { grid-template-columns: 1fr; }
+      .steps-grid::before { display: none; }
+    }
+
+    /* ============================================
+       LIVE AI SECTION
+    ============================================ */
+    #live-ai {
+      background: linear-gradient(180deg, var(--bg-void), rgba(0,168,107,0.05), var(--bg-void));
+    }
+    .ai-demo-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 60px;
+      align-items: center;
+    }
+    .feature-list { list-style: none; margin-top: 28px; }
+    .feature-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      padding: 16px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      font-size: 0.9rem;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+    .feature-list li::before {
+      content: '▸';
+      color: var(--green-bright);
+      font-size: 0.8rem;
+      margin-top: 2px;
+      flex-shrink: 0;
+    }
+    .feature-list li strong { color: var(--white); display: block; font-size: 0.85rem; margin-bottom: 2px; }
+    .ai-demo-right { position: relative; }
+
+    /* Live Camera Demo Widget */
+    .camera-demo-widget {
+      background: var(--bg-deep);
+      border: 1px solid rgba(0,255,136,0.15);
+      border-radius: 24px;
+      overflow: hidden;
+      box-shadow: 0 40px 80px rgba(0,0,0,0.4), 0 0 60px rgba(0,168,107,0.1);
+      animation: float 5s ease-in-out infinite;
+    }
+    .camera-demo-header {
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(0,255,136,0.08);
+      background: rgba(0,255,136,0.03);
+    }
+    .camera-demo-title {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: var(--green-bright);
+      letter-spacing: 0.1em;
+    }
+    .camera-live-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--font-mono);
+      font-size: 0.6rem;
+      color: #ff3d3d;
+      letter-spacing: 0.15em;
+    }
+    .camera-live-badge::before {
+      content: '';
+      width: 6px; height: 6px;
+      background: #ff3d3d;
+      border-radius: 50%;
+      box-shadow: 0 0 8px #ff3d3d;
+      animation: blink 1s ease infinite;
+    }
+    .camera-demo-view {
+      position: relative;
+      aspect-ratio: 4/3;
+      background: #020e06;
+      overflow: hidden;
+    }
+    .skeleton-svg {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 55%;
+      opacity: 0.6;
+    }
+    .ai-correction-box {
+      position: absolute;
+      top: 8%; left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255, 100, 0, 0.15);
+      border: 1px solid rgba(255,160,0,0.5);
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-family: var(--font-mono);
+      font-size: 0.6rem;
+      color: #ffaa00;
+      letter-spacing: 0.1em;
+      animation: blink 2s ease infinite;
+    }
+    .ai-angle-box {
+      position: absolute;
+      bottom: 10%; right: 5%;
+      background: rgba(0,255,136,0.1);
+      border: 1px solid rgba(0,255,136,0.4);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      color: var(--green-bright);
+    }
+    .angle-val {
+      font-size: 1.2rem;
+      font-weight: 700;
+      display: block;
+      margin-top: 2px;
+    }
+    .ai-status-bar {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      padding: 10px 16px;
+      background: linear-gradient(0deg, rgba(0,255,136,0.1), transparent);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .status-dot-pulse {
+      width: 8px; height: 8px;
+      background: var(--green-bright);
+      border-radius: 50%;
+      box-shadow: 0 0 12px var(--green-bright);
+      animation: blink 1.2s ease infinite;
+    }
+    .status-text {
+      font-family: var(--font-mono);
+      font-size: 0.6rem;
+      color: var(--green-bright);
+      letter-spacing: 0.15em;
+    }
+    .camera-demo-footer {
+      padding: 14px 20px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      border-top: 1px solid rgba(0,255,136,0.08);
+    }
+    .metric-tile { text-align: center; }
+    .metric-val {
+      font-family: var(--font-display);
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--green-bright);
+    }
+    .metric-lbl {
+      font-size: 0.6rem;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      display: block;
+      margin-top: 2px;
+    }
+
+    @media (max-width: 900px) {
+      .ai-demo-container { grid-template-columns: 1fr; }
+    }
+
+    /* ============================================
+       AI TUTOR CHAT
+    ============================================ */
+    #ai-tutor {
+      background: linear-gradient(180deg, var(--bg-void), rgba(0,255,136,0.03), var(--bg-void));
+    }
+    .chat-demo-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 60px;
+      align-items: center;
+    }
+    .chat-window {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      overflow: hidden;
+      box-shadow: 0 40px 80px rgba(0,0,0,0.4);
+      animation: float 5.5s 1s ease-in-out infinite;
+    }
+    .chat-header {
+      padding: 16px 20px;
+      background: rgba(0,255,136,0.04);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .chat-ai-avatar {
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, var(--green-primary), var(--green-bright));
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-display);
+      font-size: 0.65rem;
+      font-weight: 700;
+      color: var(--bg-void);
+      box-shadow: 0 0 16px rgba(0,255,136,0.3);
+    }
+    .chat-ai-info { flex: 1; }
+    .chat-ai-name {
+      font-family: var(--font-display);
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--white);
+    }
+    .chat-ai-status {
+      font-family: var(--font-mono);
+      font-size: 0.6rem;
+      color: var(--green-bright);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .chat-ai-status::before {
+      content: '';
+      width: 5px; height: 5px;
+      background: var(--green-bright);
+      border-radius: 50%;
+      box-shadow: 0 0 6px var(--green-bright);
+    }
+    .chat-messages {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      min-height: 280px;
+      max-height: 340px;
+      overflow-y: auto;
+    }
+    .msg { display: flex; gap: 10px; align-items: flex-end; }
+    .msg-user { flex-direction: row-reverse; }
+    .msg-avatar {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.6rem;
+      font-weight: 700;
+    }
+    .msg-avatar.ai-av {
+      background: linear-gradient(135deg, var(--green-primary), var(--green-bright));
+      color: var(--bg-void);
+      font-family: var(--font-display);
+    }
+    .msg-avatar.user-av {
+      background: rgba(255,255,255,0.1);
+      color: var(--muted);
+    }
+    .msg-bubble {
+      max-width: 75%;
+      padding: 11px 14px;
+      border-radius: 16px;
+      font-size: 0.8rem;
+      line-height: 1.55;
+    }
+    .msg-ai .msg-bubble {
+      background: rgba(0,168,107,0.12);
+      border: 1px solid rgba(0,168,107,0.25);
+      color: var(--white);
+      border-bottom-left-radius: 4px;
+    }
+    .msg-user .msg-bubble {
+      background: rgba(0,255,136,0.08);
+      border: 1px solid rgba(0,255,136,0.2);
+      color: var(--white);
+      border-bottom-right-radius: 4px;
+    }
+    .msg-citation {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      margin-top: 8px;
+      padding: 5px 8px;
+      background: rgba(0,255,136,0.06);
+      border-radius: 6px;
+      font-family: var(--font-mono);
+      font-size: 0.58rem;
+      color: var(--green-bright);
+    }
+    .chat-input-row {
+      padding: 14px 20px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 10px;
+    }
+    .chat-input {
+      flex: 1;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 14px;
+      color: var(--white);
+      font-family: var(--font-body);
+      font-size: 0.8rem;
+      outline: none;
+      transition: border-color 0.3s;
+    }
+    .chat-input:focus { border-color: rgba(0,255,136,0.4); }
+    .chat-input::placeholder { color: var(--muted); }
+    .chat-send-btn {
+      width: 40px; height: 40px;
+      background: linear-gradient(135deg, var(--green-primary), var(--green-bright));
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s;
+      flex-shrink: 0;
+    }
+    .chat-send-btn:hover { box-shadow: var(--glow-soft); transform: scale(1.05); }
+    .chat-suggestions {
+      padding: 0 20px 14px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .suggestion-chip {
+      padding: 5px 10px;
+      background: rgba(0,168,107,0.08);
+      border: 1px solid rgba(0,168,107,0.2);
+      border-radius: 100px;
+      font-size: 0.68rem;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.3s;
+      white-space: nowrap;
+    }
+    .suggestion-chip:hover { border-color: var(--green-bright); color: var(--green-bright); }
+
+    .tutor-feature-cards { display: flex; flex-direction: column; gap: 16px; }
+    .tutor-card {
+      padding: 20px 24px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+      transition: all 0.3s;
+    }
+    .tutor-card:hover { border-color: rgba(0,255,136,0.3); transform: translateX(6px); }
+    .tutor-card-icon {
+      width: 44px; height: 44px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, rgba(0,168,107,0.2), rgba(0,255,136,0.1));
+      border: 1px solid rgba(0,255,136,0.15);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      flex-shrink: 0;
+    }
+    .tutor-card-title {
+      font-family: var(--font-display);
+      font-size: 0.78rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+      letter-spacing: 0.03em;
+    }
+    .tutor-card-desc { font-size: 0.8rem; color: var(--muted); line-height: 1.6; }
+
+    @media (max-width: 900px) {
+      .chat-demo-container { grid-template-columns: 1fr; }
+    }
+
+    /* ============================================
+       FEATURES GRID
+    ============================================ */
+    #features {
+      background: linear-gradient(180deg, var(--bg-void), rgba(0,168,107,0.04), var(--bg-void));
+    }
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+    .feature-card {
+      padding: 32px 28px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      transition: all 0.4s ease;
+      position: relative;
+      overflow: hidden;
+      cursor: default;
+    }
+    .feature-card::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--green-primary), var(--green-bright));
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.4s ease;
+    }
+    .feature-card:hover { transform: translateY(-6px); border-color: rgba(0,255,136,0.25); }
+    .feature-card:hover::after { transform: scaleX(1); }
+    .feature-icon {
+      width: 56px; height: 56px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, rgba(0,168,107,0.15), rgba(0,255,136,0.08));
+      border: 1px solid rgba(0,255,136,0.12);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      margin-bottom: 20px;
+      transition: all 0.3s;
+    }
+    .feature-card:hover .feature-icon { box-shadow: 0 0 24px rgba(0,255,136,0.3); }
+    .feature-title {
+      font-family: var(--font-display);
+      font-size: 0.85rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+      letter-spacing: 0.03em;
+    }
+    .feature-desc { font-size: 0.83rem; color: var(--muted); line-height: 1.65; }
+    .feature-card.featured {
+      grid-column: span 2;
+      background: linear-gradient(135deg, rgba(0,168,107,0.1), rgba(0,255,136,0.05));
+      border-color: rgba(0,255,136,0.2);
+      display: flex;
+      gap: 28px;
+      align-items: center;
+    }
+    .feature-card.featured .feature-icon { width: 72px; height: 72px; font-size: 1.8rem; flex-shrink: 0; }
+    .feature-card.featured .feature-title { font-size: 1.1rem; margin-bottom: 8px; }
+    .feature-card.featured .feature-desc { font-size: 0.88rem; }
+
+    @media (max-width: 900px) {
+      .features-grid { grid-template-columns: 1fr; }
+      .feature-card.featured { grid-column: span 1; flex-direction: column; }
+    }
+    @media (max-width: 600px) {
+      .features-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ============================================
+       STATS SECTION
+    ============================================ */
+    .stats-section {
+      padding: 60px 0;
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      background: rgba(0,168,107,0.03);
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 40px;
+    }
+    .stat-item { text-align: center; }
+    .stat-number {
+      font-family: var(--font-display);
+      font-size: 2.4rem;
+      font-weight: 900;
+      color: var(--green-bright);
+      letter-spacing: -0.02em;
+      text-shadow: 0 0 30px rgba(0,255,136,0.4);
+    }
+    .stat-label { font-size: 0.82rem; color: var(--muted); margin-top: 6px; line-height: 1.5; }
+
+    @media (max-width: 600px) {
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    /* ============================================
+       TESTIMONIALS
+    ============================================ */
+    #testimonials { background: var(--bg-void); }
+    .testimonials-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+    .testimonial-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 28px;
+      transition: all 0.3s;
+      position: relative;
+    }
+    .testimonial-card:hover { transform: translateY(-4px); border-color: rgba(0,255,136,0.2); }
+    .testimonial-quote-icon {
+      font-size: 2.4rem;
+      color: var(--green-bright);
+      opacity: 0.3;
+      font-family: Georgia, serif;
+      line-height: 1;
+      margin-bottom: 12px;
+    }
+    .testimonial-text {
+      font-size: 0.88rem;
+      color: rgba(237,255,245,0.8);
+      line-height: 1.7;
+      margin-bottom: 20px;
+      font-style: italic;
+    }
+    .testimonial-author { display: flex; align-items: center; gap: 12px; }
+    .author-avatar {
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.8rem;
+      color: var(--bg-void);
+      flex-shrink: 0;
+    }
+    .author-name { font-size: 0.85rem; font-weight: 600; }
+    .author-title { font-size: 0.72rem; color: var(--muted); margin-top: 1px; }
+    .stars { color: #FFD700; font-size: 0.8rem; margin-bottom: 10px; }
+
+    @media (max-width: 900px) {
+      .testimonials-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ============================================
+       FOR EDUCATORS
+    ============================================ */
+    #educators {
+      background: linear-gradient(135deg, rgba(0,168,107,0.06) 0%, rgba(0,255,136,0.03) 100%);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+    .educators-inner {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 80px;
+      align-items: center;
+    }
+    .educators-feature-list {
+      list-style: none;
+      margin-top: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .educators-feature-list li {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+    .check-icon {
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      background: rgba(0,255,136,0.1);
+      border: 1px solid rgba(0,255,136,0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.65rem;
+      color: var(--green-bright);
+      flex-shrink: 0;
+    }
+    .edu-card {
+      background: var(--bg-surface);
+      border: 1px solid rgba(0,255,136,0.15);
+      border-radius: 24px;
+      padding: 40px;
+      box-shadow: var(--glow-soft);
+    }
+    .edu-card-title {
+      font-family: var(--font-display);
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .edu-card-desc { font-size: 0.88rem; color: var(--muted); margin-bottom: 28px; line-height: 1.7; }
+    .edu-metrics {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+    .edu-metric {
+      padding: 16px;
+      background: rgba(0,255,136,0.05);
+      border: 1px solid rgba(0,255,136,0.1);
+      border-radius: 12px;
+    }
+    .edu-metric-val { font-family: var(--font-display); font-size: 1.2rem; font-weight: 700; color: var(--green-bright); }
+    .edu-metric-label { font-size: 0.72rem; color: var(--muted); margin-top: 3px; }
+
+    @media (max-width: 900px) {
+      .educators-inner { grid-template-columns: 1fr; }
+    }
+
+    /* ============================================
+       DOWNLOAD SECTION
+    ============================================ */
+    #download {
+      padding: 120px 0;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    #download::before {
+      content: '';
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 800px; height: 800px;
+      background: radial-gradient(circle, rgba(0,168,107,0.1) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .download-title {
+      font-family: var(--font-display);
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      font-weight: 900;
+      margin-bottom: 16px;
+      letter-spacing: -0.02em;
+    }
+    .download-sub {
+      font-size: 1.05rem;
+      color: var(--muted);
+      max-width: 480px;
+      margin: 0 auto 48px;
+      line-height: 1.7;
+    }
+    .download-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 48px;
+    }
+    .dl-btn {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 28px;
+      border-radius: 14px;
+      text-decoration: none;
+      transition: all 0.3s;
+      min-width: 200px;
+    }
+    .dl-btn-icon { font-size: 1.8rem; }
+    .dl-btn-text-sm { font-size: 0.65rem; color: rgba(255,255,255,0.6); letter-spacing: 0.1em; }
+    .dl-btn-text-lg { font-family: var(--font-display); font-size: 0.9rem; font-weight: 700; }
+    .dl-ios {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.15);
+      color: var(--white);
+    }
+    .dl-ios:hover { background: rgba(255,255,255,0.1); transform: translateY(-3px); }
+    .dl-android {
+      background: rgba(0,255,136,0.06);
+      border: 1px solid rgba(0,255,136,0.25);
+      color: var(--white);
+    }
+    .dl-android:hover { box-shadow: var(--glow-soft); transform: translateY(-3px); }
+    .qr-section {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+    .qr-box {
+      width: 120px; height: 120px;
+      background: var(--white);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px;
+      box-shadow: 0 0 40px rgba(0,255,136,0.2);
+    }
+    .qr-placeholder {
+      width: 100%; height: 100%;
+      background:
+        repeating-linear-gradient(0deg, transparent, transparent 6px, #000 6px, #000 7px),
+        repeating-linear-gradient(90deg, transparent, transparent 6px, #000 6px, #000 7px);
+      border-radius: 4px;
+      opacity: 0.9;
+    }
+    .qr-label { font-size: 0.72rem; color: var(--muted); font-family: var(--font-mono); }
+
+    /* ============================================
+       FOOTER
+    ============================================ */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 60px 0 30px;
+      background: var(--bg-deep);
+    }
+    .footer-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 1fr;
+      gap: 40px;
+      margin-bottom: 48px;
+    }
+    .footer-brand-desc {
+      font-size: 0.85rem;
+      color: var(--muted);
+      line-height: 1.7;
+      margin: 14px 0 20px;
+      max-width: 280px;
+    }
+    .footer-social { display: flex; gap: 10px; }
+    .social-btn {
+      width: 36px; height: 36px;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+      text-decoration: none;
+      color: var(--muted);
+      transition: all 0.3s;
+    }
+    .social-btn:hover { border-color: var(--green-bright); color: var(--green-bright); box-shadow: var(--glow-soft); }
+    .footer-col h4 {
+      font-family: var(--font-display);
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      color: var(--white);
+      margin-bottom: 18px;
+    }
+    .footer-col ul { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+    .footer-col ul li a {
+      font-size: 0.83rem;
+      color: var(--muted);
+      text-decoration: none;
+      transition: color 0.3s;
+    }
+    .footer-col ul li a:hover { color: var(--green-bright); }
+    .footer-bottom {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 24px;
+      border-top: 1px solid var(--border);
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .footer-copy { font-size: 0.78rem; color: var(--muted); }
+    .footer-legal { display: flex; gap: 20px; }
+    .footer-legal a { font-size: 0.78rem; color: var(--muted); text-decoration: none; transition: color 0.3s; }
+    .footer-legal a:hover { color: var(--green-bright); }
+
+    @media (max-width: 768px) {
+      .footer-grid { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 480px) {
+      .footer-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ============================================
+       BACK TO TOP
+    ============================================ */
+    #back-top {
+      position: fixed;
+      bottom: 32px; right: 32px;
+      width: 44px; height: 44px;
+      background: rgba(6,40,20,0.9);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      z-index: 100;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.3s;
+      color: var(--green-bright);
+      font-size: 1.1rem;
+      backdrop-filter: blur(10px);
+    }
+    #back-top.visible { opacity: 1; pointer-events: all; }
+    #back-top:hover { box-shadow: var(--glow-soft); transform: translateY(-3px); }
+
+  </style>
+</head>
+<body>
+
+  <!-- Custom Cursor -->
+  <div id="cursor"></div>
+  <div id="cursor-dot"></div>
+
+  <!-- Back to Top -->
+  <button id="back-top" aria-label="Back to top" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
+
+  <!-- NAVIGATION -->
+  <nav id="navbar" role="navigation" aria-label="Main navigation">
+    <div class="nav-inner">
+      <a href="#" class="nav-logo" aria-label="Radia Home">
+        <div class="nav-logo-icon" aria-hidden="true">Rx</div>
+        <span class="nav-logo-text">RADIA</span>
+      </a>
+      <ul class="nav-links" role="list">
+        <li><a href="#how-it-works">How It Works</a></li>
+        <li><a href="#live-ai">Live AI</a></li>
+        <li><a href="#ai-tutor">AI Tutor</a></li>
+        <li><a href="#features">Features</a></li>
+        <li><a href="#educators">For Educators</a></li>
+        <li>
+          <a href="https://download.radia.app" class="nav-cta" target="_blank" rel="noopener">Download Free</a>
+        </li>
+      </ul>
+      <div id="mobile-menu-btn" aria-label="Toggle menu" role="button" tabindex="0">
+        <span></span><span></span><span></span>
+      </div>
+    </div>
+    <div id="mobile-menu" role="menu">
+      <a href="#how-it-works" role="menuitem">How It Works</a>
+      <a href="#live-ai" role="menuitem">Live AI</a>
+      <a href="#ai-tutor" role="menuitem">AI Tutor</a>
+      <a href="#features" role="menuitem">Features</a>
+      <a href="#educators" role="menuitem">For Educators</a>
+      <a href="https://download.radia.app" role="menuitem" style="color:var(--green-bright);font-weight:600;" target="_blank">Download Free →</a>
+    </div>
+  </nav>
+
+  <!-- HERO SECTION -->
+  <section id="hero" aria-label="Hero">
+    <canvas id="hero-canvas" aria-hidden="true"></canvas>
+    <div class="hero-grid-overlay" aria-hidden="true"></div>
+    <div class="hero-scan-line" aria-hidden="true"></div>
+
+    <div class="hero-content">
+      <!-- LEFT -->
+      <div class="hero-left">
+        <div class="hero-badge" aria-label="AI-Powered Radiology Platform">
+          AI-POWERED RADIOLOGY PLATFORM
+        </div>
+
+        <h1 class="hero-headline">
+          Master Radiology<br/>
+          with <span class="line-accent">AI Intelligence</span><br/>
+          Live. Correct. Learn.
+        </h1>
+
+        <p class="hero-tagline">
+          <strong>Real-time AI positioning correction, instant doubt resolution,</strong>
+          and an AI tutor that never sleeps — built exclusively for radiology students and professionals.
+        </p>
+
+        <div class="hero-stat-pills">
+          <div class="stat-pill">
+            <span class="stat-pill-num">50K+</span>
+            <span class="stat-pill-label">Students</span>
+          </div>
+          <div class="stat-pill">
+            <span class="stat-pill-num">98%</span>
+            <span class="stat-pill-label">Accuracy</span>
+          </div>
+          <div class="stat-pill">
+            <span class="stat-pill-num">4.9★</span>
+            <span class="stat-pill-label">Rating</span>
+          </div>
+        </div>
+
+        <div class="hero-cta-row">
+          <a href="https://download.radia.app" class="btn-primary" target="_blank" rel="noopener" aria-label="Download Radia for Free">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 16l4-4h-3V4h-2v8H8l4 4zm9 4H3v-2h18v2z"/></svg>
+            Download Radia — Free
+          </a>
+          <a href="#how-it-works" class="btn-secondary" aria-label="See how Radia works">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+            See How It Works
+          </a>
+        </div>
+
+        <div class="hero-trust">
+          <p class="hero-trust-label">TRUSTED BY STUDENTS FROM</p>
+          <div class="trust-logos" role="list" aria-label="Partner institutions">
+            <div class="trust-logo" role="listitem">AIIMS Delhi</div>
+            <div class="trust-logo" role="listitem">KMC Manipal</div>
+            <div class="trust-logo" role="listitem">PGIMER</div>
+            <div class="trust-logo" role="listitem">CMC Vellore</div>
+            <div class="trust-logo" role="listitem">JIPMER</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT — Phone Mockup -->
+      <div class="hero-right" aria-hidden="true">
+        <div class="hero-phone-wrap">
+          <div class="hero-ring"></div>
+          <div class="hero-ring"></div>
+          <div class="hero-ring"></div>
+
+          <!-- Floating Chips -->
+          <div class="floating-chip chip-1">
+            <div class="chip-label">POSITIONING</div>
+            <div class="chip-value">OPTIMAL ✓</div>
+          </div>
+          <div class="floating-chip chip-2">
+            <div class="chip-label">AI CONFIDENCE</div>
+            <div class="chip-value">97.4%</div>
+          </div>
+          <div class="floating-chip chip-3">
+            <div class="chip-label">RETAKE RATE</div>
+            <div class="chip-value">↓ 68%</div>
+          </div>
+
+          <!-- Phone -->
+          <div class="phone-shell">
+            <div class="phone-screen">
+              <div class="phone-notch"></div>
+              <div class="phone-ui">
+                <div class="phone-header">
+                  <span class="phone-header-logo">RADIA</span>
+                  <span class="phone-status">AI LIVE</span>
+                </div>
+                <div class="phone-camera-view">
+                  <div class="camera-scan-h"></div>
+                  <div class="camera-body-outline"></div>
+                  <div class="ai-overlay-box">
+                    <div class="ai-dot" style="top:20%;left:50%;transform:translate(-50%,-50%)"></div>
+                    <div class="ai-dot" style="top:50%;left:25%;transform:translate(-50%,-50%)"></div>
+                    <div class="ai-dot" style="top:50%;left:75%;transform:translate(-50%,-50%)"></div>
+                    <div class="ai-dot" style="top:75%;left:50%;transform:translate(-50%,-50%)"></div>
+                  </div>
+                  <div class="ai-status-bar">
+                    <div class="status-dot-pulse"></div>
+                    <span class="status-text">ANALYZING POSITION...</span>
+                  </div>
+                </div>
+                <div class="phone-ai-bar">
+                  <div class="phone-ai-icon">AI</div>
+                  <div class="phone-ai-text">Rotate left 3° — Shoulder elevation detected</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DATA TICKER -->
+  <div class="data-ticker" aria-hidden="true">
+    <div class="ticker-track">
+      <span class="ticker-item"><span class="dot">◆</span> Real-time AI Positioning Analysis</span>
+      <span class="ticker-item"><span class="dot">◆</span> 3D Skeletal Overlay Guidance</span>
+      <span class="ticker-item"><span class="dot">◆</span> Instant Clinical Doubt Resolution</span>
+      <span class="ticker-item"><span class="dot">◆</span> Evidence-Based Citation Engine</span>
+      <span class="ticker-item"><span class="dot">◆</span> 50,000+ Active Radiology Students</span>
+      <span class="ticker-item"><span class="dot">◆</span> 98% Positioning Accuracy Rate</span>
+      <span class="ticker-item"><span class="dot">◆</span> 68% Reduction in X-ray Retakes</span>
+      <span class="ticker-item"><span class="dot">◆</span> Real-time AI Positioning Analysis</span>
+      <span class="ticker-item"><span class="dot">◆</span> 3D Skeletal Overlay Guidance</span>
+      <span class="ticker-item"><span class="dot">◆</span> Instant Clinical Doubt Resolution</span>
+      <span class="ticker-item"><span class="dot">◆</span> Evidence-Based Citation Engine</span>
+      <span class="ticker-item"><span class="dot">◆</span> 50,000+ Active Radiology Students</span>
+      <span class="ticker-item"><span class="dot">◆</span> 98% Positioning Accuracy Rate</span>
+      <span class="ticker-item"><span class="dot">◆</span> 68% Reduction in X-ray Retakes</span>
+    </div>
+  </div>
+
+  <!-- HOW IT WORKS -->
+  <section id="how-it-works" class="section" aria-label="How Radia Works">
+    <div class="container">
+      <div class="section-header animate-on-scroll">
+        <div class="section-label">Process</div>
+        <h2 class="section-title">How Radia <span class="text-green">Works</span></h2>
+        <p class="section-subtitle">Three simple steps to transform how you learn and practice radiographic positioning — powered by AI that sees what you see.</p>
+      </div>
+      <div class="steps-grid">
+        <div class="step-card animate-on-scroll" style="transition-delay:0.1s" tabindex="0">
+          <div class="step-number">01 / CAPTURE</div>
+          <div class="step-icon-wrap" aria-hidden="true">📱</div>
+          <h3 class="step-title">Point Your Camera</h3>
+          <p class="step-desc">Open Radia and point your phone camera at the patient or positioning phantom. Our AI activates instantly — no setup, no calibration required.</p>
+        </div>
+        <div class="step-card animate-on-scroll" style="transition-delay:0.2s" tabindex="0">
+          <div class="step-number">02 / ANALYZE</div>
+          <div class="step-icon-wrap" aria-hidden="true">🧠</div>
+          <h3 class="step-title">AI Reads the Position</h3>
+          <p class="step-desc">Our deep learning model maps 120+ skeletal landmarks in real-time, comparing your positioning against thousands of validated radiographic standards.</p>
+        </div>
+        <div class="step-card animate-on-scroll" style="transition-delay:0.3s" tabindex="0">
+          <div class="step-number">03 / CORRECT</div>
+          <div class="step-icon-wrap" aria-hidden="true">✅</div>
+          <h3 class="step-title">Get Live Corrections</h3>
+          <p class="step-desc">See holographic overlays with precise angle corrections, rotation guidance, and positioning scores — all in real-time before you take the X-ray.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- STATS -->
+  <div class="stats-section" aria-label="Platform Statistics">
+    <div class="container">
+      <div class="stats-grid">
+        <div class="stat-item animate-on-scroll">
+          <div class="stat-number" data-target="50000">0</div>
+          <div class="stat-label">Radiology students<br/>actively using Radia</div>
+        </div>
+        <div class="stat-item animate-on-scroll" style="transition-delay:0.1s">
+          <div class="stat-number" data-target="98">0</div>
+          <div class="stat-label">Positioning accuracy<br/>rate (% correct)</div>
+        </div>
+        <div class="stat-item animate-on-scroll" style="transition-delay:0.2s">
+          <div class="stat-number" data-target="68">0</div>
+          <div class="stat-label">Reduction in X-ray<br/>retakes (% avg)</div>
+        </div>
+        <div class="stat-item animate-on-scroll" style="transition-delay:0.3s">
+          <div class="stat-number" data-target="120">0</div>
+          <div class="stat-label">Radiographic positions<br/>covered in the app</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LIVE AI POSITIONING -->
+  <section id="live-ai" class="section" aria-label="Live AI Positioning">
+    <div class="container">
+      <div class="ai-demo-container">
+        <div class="ai-demo-left animate-on-scroll">
+          <div class="section-label">Core Technology</div>
+          <h2 class="section-title" style="text-align:left;margin:12px 0 16px">
+            Live AI Positioning<br/><span class="text-green">Correction Engine</span>
+          </h2>
+          <p style="color:var(--muted);font-size:0.92rem;line-height:1.7;max-width:440px">
+            Our proprietary computer vision model was trained on over 2 million radiographic images to understand human anatomy and positioning with clinical precision.
+          </p>
+          <ul class="feature-list" aria-label="Live AI Features">
+            <li><div><strong>120+ Landmark Skeletal Mapping</strong>Maps anatomical keypoints from head to toe in under 50ms — faster than a blink.</div></li>
+            <li><div><strong>Angle & Rotation Correction</strong>Displays exact degree corrections in real-time with directional arrows and visual overlays.</div></li>
+            <li><div><strong>3D Holographic Overlay</strong>Superimposes a 3D skeletal reference directly on your camera feed for side-by-side comparison.</div></li>
+            <li><div><strong>Positioning Score & History</strong>Track your improvement over time with a confidence score, session log, and comparison charts.</div></li>
+          </ul>
+          <div style="margin-top:32px">
+            <a href="https://download.radia.app" class="btn-primary" target="_blank" rel="noopener" style="display:inline-flex;font-size:0.75rem">
+              Try Live AI Free →
+            </a>
+          </div>
+        </div>
+
+        <div class="ai-demo-right animate-on-scroll" style="transition-delay:0.2s" aria-label="Live AI Demo Preview">
+          <div class="camera-demo-widget">
+            <div class="camera-demo-header">
+              <span class="camera-demo-title">RADIA AI · LIVE POSITIONING</span>
+              <span class="camera-live-badge">REC LIVE</span>
+            </div>
+            <div class="camera-demo-view">
+              <div class="camera-scan-h"></div>
+              <!-- Grid overlay -->
+              <svg style="position:absolute;inset:0;width:100%;height:100%;opacity:0.1" aria-hidden="true">
+                <defs>
+                  <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                    <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#00FF88" stroke-width="0.5"/>
+                  </pattern>
+                </defs>
+                <rect width="100%" height="100%" fill="url(#grid)"/>
+              </svg>
+              <!-- Skeleton SVG figure -->
+              <svg class="skeleton-svg" viewBox="0 0 100 220" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <circle cx="50" cy="16" r="12" stroke="#00FF88" stroke-width="1.5" fill="rgba(0,255,136,0.05)"/>
+                <line x1="50" y1="28" x2="50" y2="110" stroke="#00FF88" stroke-width="1.5"/>
+                <ellipse cx="50" cy="115" rx="22" ry="10" stroke="#00FF88" stroke-width="1.5" fill="rgba(0,255,136,0.05)"/>
+                <line x1="50" y1="40" x2="20" y2="50" stroke="#00FF88" stroke-width="1.5"/>
+                <line x1="50" y1="40" x2="80" y2="50" stroke="#00FF88" stroke-width="1.5"/>
+                <line x1="20" y1="50" x2="10" y2="90" stroke="#00FF88" stroke-width="1"/>
+                <line x1="80" y1="50" x2="90" y2="90" stroke="#00FF88" stroke-width="1"/>
+                <circle cx="10" cy="95" r="3.5" stroke="#00FF88" stroke-width="1" fill="rgba(0,255,136,0.08)"/>
+                <circle cx="90" cy="95" r="3.5" stroke="#00FF88" stroke-width="1" fill="rgba(0,255,136,0.08)"/>
+                <line x1="42" y1="124" x2="35" y2="175" stroke="#00FF88" stroke-width="1.5"/>
+                <line x1="58" y1="124" x2="65" y2="175" stroke="#00FF88" stroke-width="1.5"/>
+                <circle cx="34" cy="178" r="4" stroke="#00FF88" stroke-width="1" fill="rgba(0,255,136,0.08)"/>
+                <circle cx="66" cy="178" r="4" stroke="#00FF88" stroke-width="1" fill="rgba(0,255,136,0.08)"/>
+                <line x1="34" y1="182" x2="30" y2="210" stroke="#00FF88" stroke-width="1"/>
+                <line x1="66" y1="182" x2="70" y2="210" stroke="#00FF88" stroke-width="1"/>
+                <circle cx="50" cy="40" r="3" fill="#00FF88" opacity="0.9"/>
+                <circle cx="50" cy="75" r="3" fill="#00FF88" opacity="0.9"/>
+                <circle cx="50" cy="110" r="3" fill="#00FF88" opacity="0.9"/>
+                <circle cx="20" cy="50" r="2.5" fill="#ffaa00" opacity="0.9"/>
+                <circle cx="80" cy="50" r="2.5" fill="#00FF88" opacity="0.9"/>
+              </svg>
+              <div class="ai-correction-box" role="alert">⚠ LEFT SHOULDER +4° ELEVATION</div>
+              <div class="ai-angle-box" aria-label="Detected angle">
+                <span style="font-size:0.55rem;opacity:0.7">DETECTED ANGLE</span>
+                <span class="angle-val">14.2°</span>
+                <span style="font-size:0.55rem;color:#ffaa00">↓ Rotate 4° left</span>
+              </div>
+              <div class="ai-status-bar">
+                <div class="status-dot-pulse"></div>
+                <span class="status-text">REAL-TIME ANALYSIS ACTIVE — 47ms LATENCY</span>
+              </div>
+            </div>
+            <div class="camera-demo-footer">
+              <div class="metric-tile">
+                <div class="metric-val">97.4%</div>
+                <span class="metric-lbl">AI CONFIDENCE</span>
+              </div>
+              <div class="metric-tile">
+                <div class="metric-val">47ms</div>
+                <span class="metric-lbl">LATENCY</span>
+              </div>
+              <div class="metric-tile">
+                <div class="metric-val">122</div>
+                <span class="metric-lbl">LANDMARKS</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- AI TUTOR CHAT -->
+  <section id="ai-tutor" class="section" aria-label="AI Radiology Tutor">
+    <div class="container">
+      <div class="section-header animate-on-scroll">
+        <div class="section-label">AI Intelligence</div>
+        <h2 class="section-title">Meet Your AI <span class="text-green">Radiology Tutor</span></h2>
+        <p class="section-subtitle">Ask anything. Get cited, visual, expert-level answers instantly — on anatomy, positioning, pathology, and clinical protocols.</p>
+      </div>
+
+      <div class="chat-demo-container">
+        <div class="animate-on-scroll" aria-label="AI Tutor Chat Demo">
+          <div class="chat-window">
+            <div class="chat-header">
+              <div class="chat-ai-avatar" aria-hidden="true">Rx</div>
+              <div class="chat-ai-info">
+                <div class="chat-ai-name">Radia AI Tutor</div>
+                <div class="chat-ai-status">Online · Responds instantly</div>
+              </div>
+              <div style="font-family:var(--font-mono);font-size:0.6rem;color:var(--muted)">GPT-4 + Med-RAG</div>
+            </div>
+
+            <div class="chat-messages" id="chat-messages" aria-live="polite" role="log">
+              <div class="msg msg-ai">
+                <div class="msg-avatar ai-av" aria-hidden="true">Rx</div>
+                <div class="msg-bubble">
+                  Hello! I'm your AI Radiology Tutor. Ask me anything about radiographic positioning, anatomy, pathology, or clinical protocols — I'll give you cited, expert answers instantly. 🩻
+                </div>
+              </div>
+              <div class="msg msg-user">
+                <div class="msg-avatar user-av" aria-hidden="true">You</div>
+                <div class="msg-bubble">What is the correct CR angle for a lateral knee projection?</div>
+              </div>
+              <div class="msg msg-ai">
+                <div class="msg-avatar ai-av" aria-hidden="true">Rx</div>
+                <div class="msg-bubble">
+                  For a <strong>lateral knee projection</strong>, the central ray is directed <strong>perpendicular to the IR</strong> (0° angle) with the patient in a true lateral position. The knee should be flexed 20–30°, with the IR placed at the level of the knee joint.
+                  <div style="margin-top:8px;font-size:0.75rem;color:var(--green-bright)">Key landmark: Medial femoral condyle should project 5mm posterior to lateral condyle.</div>
+                  <div class="msg-citation">📚 Bontrager's Handbook · 9th Ed. · Ch. 6, p.212</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="chat-suggestions" aria-label="Suggested questions">
+              <button class="suggestion-chip" onclick="sendSuggestion(this)" type="button">PA Chest position?</button>
+              <button class="suggestion-chip" onclick="sendSuggestion(this)" type="button">Scaphoid fracture views</button>
+              <button class="suggestion-chip" onclick="sendSuggestion(this)" type="button">OPG criteria</button>
+            </div>
+
+            <div class="chat-input-row">
+              <input
+                type="text"
+                class="chat-input"
+                id="chat-input"
+                placeholder="Ask any radiology question..."
+                aria-label="Type your radiology question"
+                onkeypress="if(event.key==='Enter')sendChat()"
+              />
+              <button class="chat-send-btn" onclick="sendChat()" aria-label="Send message">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="white" aria-hidden="true"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="animate-on-scroll" style="transition-delay:0.2s">
+          <div class="section-label">Capabilities</div>
+          <h3 class="section-title" style="text-align:left;font-size:1.6rem;margin:12px 0 24px">
+            Your 24/7 Clinical<br/><span class="text-green">Knowledge Engine</span>
+          </h3>
+          <div class="tutor-feature-cards">
+            <div class="tutor-card">
+              <div class="tutor-card-icon" aria-hidden="true">📚</div>
+              <div>
+                <div class="tutor-card-title">Evidence-Based Citations</div>
+                <div class="tutor-card-desc">Every answer comes with citations from Bontrager, Merrill's, and peer-reviewed radiology journals — so you learn, not just get answers.</div>
+              </div>
+            </div>
+            <div class="tutor-card">
+              <div class="tutor-card-icon" aria-hidden="true">🔬</div>
+              <div>
+                <div class="tutor-card-title">Visual Explanations</div>
+                <div class="tutor-card-desc">AI generates labeled anatomical diagrams, projection charts, and 3D structure maps right inside the chat to reinforce concepts visually.</div>
+              </div>
+            </div>
+            <div class="tutor-card">
+              <div class="tutor-card-icon" aria-hidden="true">⚡</div>
+              <div>
+                <div class="tutor-card-title">Instant. Always On.</div>
+                <div class="tutor-card-desc">No waiting for a professor or senior. Ask at 2am during exam prep and get a clinically accurate response in under 3 seconds.</div>
+              </div>
+            </div>
+            <div class="tutor-card">
+              <div class="tutor-card-icon" aria-hidden="true">🎯</div>
+              <div>
+                <div class="tutor-card-title">Adaptive Learning Path</div>
+                <div class="tutor-card-desc">Radia tracks your weak areas and proactively quizzes you on positions, anatomy, and pathology to close knowledge gaps before exams.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURES GRID -->
+  <section id="features" class="section" aria-label="All Features">
+    <div class="container">
+      <div class="section-header animate-on-scroll">
+        <div class="section-label">Everything You Need</div>
+        <h2 class="section-title">Built for <span class="text-green">Radiology Excellence</span></h2>
+        <p class="section-subtitle">Every feature in Radia was co-designed with radiographers, professors, and students to solve real problems in radiographic education.</p>
+      </div>
+
+      <div class="features-grid">
+        <div class="feature-card featured animate-on-scroll">
+          <div class="feature-icon" aria-hidden="true">🎯</div>
+          <div>
+            <div class="feature-title">Real-Time AI Positioning Correction</div>
+            <div class="feature-desc">The centerpiece of Radia — live camera analysis that corrects patient positioning before you press the exposure button, reducing retakes by 68% on average. Our model tracks 122 anatomical landmarks at 30fps.</div>
+          </div>
+        </div>
+        <div class="feature-card animate-on-scroll" style="transition-delay:0.05s">
+          <div class="feature-icon" aria-hidden="true">🤖</div>
+          <div class="feature-title">AI Radiology Tutor</div>
+          <div class="feature-desc">Powered by a medical-grade LLM fine-tuned on 10M+ radiology texts. Ask anything, get cited answers instantly.</div>
+        </div>
+        <div class="feature-card animate-on-scroll" style="transition-delay:0.1s">
+          <div class="feature-icon" aria-hidden="true">🦴</div>
+          <div class="feature-title">3D Skeletal Mapping</div>
+          <div class="feature-desc">Holographic 3D bone overlays projected live onto your camera feed — see exactly what the X-ray beam will capture.</div>
+        </div>
+        <div class="feature-card animate-on-scroll" style="transition-delay:0.15s">
+          <div class="feature-icon" aria-hidden="true">📊</div>
+          <div class="feature-title">Positioning Score Tracker</div>
+          <div class="feature-desc">AI grades every positioning attempt with a 0–100 score and logs improvement over sessions for student growth visibility.</div>
+        </div>
+        <div class="feature-card animate-on-scroll" style="transition-delay:0.2s">
+          <div class="feature-icon" aria-hidden="true">📖</div>
+          <div class="feature-title">120+ Position Library</div>
+          <div class="feature-desc">Complete step-by-step guides for every standard radiographic position — from chest PA to complex trauma obliques.</div>
+        </div>
+        <div class="feature-card animate-on-scroll" style="transition-delay:0.25s">
+          <div class="feature-icon" aria-hidden="true">🏥</div>
+          <div class="feature-title">Clinical Protocol Engine</div>
+          <div class="feature-desc">Access DRLs, kVp/mAs guides, and clinical decision trees for each body part — approved and periodically updated.</div>
+        </div>
+        <div class="feature-card animate-on-scroll" style="transition-delay:0.3s">
+          <div class="feature-icon" aria-hidden="true">🧪</div>
+          <div class="feature-title">Anatomy Quiz Mode</div>
+          <div class="feature-desc">Interactive quizzes on skeletal anatomy, X-ray labeling, and pathology identification — AI-adaptive to your gaps.</div>
+        </div>
+        <div class="feature-card animate-on-scroll" style="transition-delay:0.35s">
+          <div class="feature-icon" aria-hidden="true">🔒</div>
+          <div class="feature-title">HIPAA-Compliant & Secure</div>
+          <div class="feature-desc">All AI processing is on-device or fully encrypted end-to-end. No patient data ever stored on our servers.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TESTIMONIALS -->
+  <section id="testimonials" class="section" aria-label="Student and Educator Testimonials">
+    <div class="container">
+      <div class="section-header animate-on-scroll">
+        <div class="section-label">Community</div>
+        <h2 class="section-title">Loved by <span class="text-green">50,000+ Students</span></h2>
+        <p class="section-subtitle">From first-year radiology students to senior radiographers — Radia is changing how the world learns medical imaging.</p>
+      </div>
+
+      <div class="testimonials-grid">
+        <div class="testimonial-card animate-on-scroll">
+          <div class="stars" aria-label="5 stars">★★★★★</div>
+          <div class="testimonial-quote-icon" aria-hidden="true">"</div>
+          <p class="testimonial-text">Radia completely transformed my practical exams. The live AI correction told me exactly where to adjust — I went from failing positioning to scoring 94% in my assessment.</p>
+          <div class="testimonial-author">
+            <div class="author-avatar" style="background:linear-gradient(135deg,#00A86B,#00FF88)" aria-hidden="true">PK</div>
+            <div>
+              <div class="author-name">Priya Krishnamurthy</div>
+              <div class="author-title">2nd Year BSc Radiology · Manipal University</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="testimonial-card animate-on-scroll" style="transition-delay:0.1s">
+          <div class="stars" aria-label="5 stars">★★★★★</div>
+          <div class="testimonial-quote-icon" aria-hidden="true">"</div>
+          <p class="testimonial-text">The AI tutor is like having a consultant radiologist in your pocket. I asked about a rare trauma projection at midnight before my viva — got a cited, diagram-level answer in seconds.</p>
+          <div class="testimonial-author">
+            <div class="author-avatar" style="background:linear-gradient(135deg,#2D6A4F,#00A86B)" aria-hidden="true">AR</div>
+            <div>
+              <div class="author-name">Arjun Reddy</div>
+              <div class="author-title">Final Year DMRT · PGIMER Chandigarh</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="testimonial-card animate-on-scroll" style="transition-delay:0.2s">
+          <div class="stars" aria-label="5 stars">★★★★★</div>
+          <div class="testimonial-quote-icon" aria-hidden="true">"</div>
+          <p class="testimonial-text">I introduced Radia to my clinical training batches. The reduction in repeat exposures was measurable within the first week — our department retake rate dropped from 24% to 8%.</p>
+          <div class="testimonial-author">
+            <div class="author-avatar" style="background:linear-gradient(135deg,#52B788,#00C9A7)" aria-hidden="true">SM</div>
+            <div>
+              <div class="author-name">Dr. Sunita Mehta</div>
+              <div class="author-title">Sr. Radiographer & Clinical Trainer · AIIMS Delhi</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="testimonial-card animate-on-scroll" style="transition-delay:0.1s">
+          <div class="stars" aria-label="5 stars">★★★★★</div>
+          <div class="testimonial-quote-icon" aria-hidden="true">"</div>
+          <p class="testimonial-text">The 3D skeletal overlay blew my mind the first time I used it. You can see the beam path in real-time. No textbook can replicate that kind of spatial learning for radiology.</p>
+          <div class="testimonial-author">
+            <div class="author-avatar" style="background:linear-gradient(135deg,#FF6B6B,#FF9500)" aria-hidden="true">TN</div>
+            <div>
+              <div class="author-name">Tanveer Nasser</div>
+              <div class="author-title">Intern Radiographer · KMC Mangalore</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="testimonial-card animate-on-scroll" style="transition-delay:0.2s">
+          <div class="stars" aria-label="5 stars">★★★★★</div>
+          <div class="testimonial-quote-icon" aria-hidden="true">"</div>
+          <p class="testimonial-text">As a professor, I love that Radia gives every student personalised feedback. I can't be beside each student simultaneously, but Radia's AI can — and it's clinically accurate.</p>
+          <div class="testimonial-author">
+            <div class="author-avatar" style="background:linear-gradient(135deg,#00A86B,#39FF14)" aria-hidden="true">RP</div>
+            <div>
+              <div class="author-name">Prof. Rajan Pillai</div>
+              <div class="author-title">Head of Radiology Dept. · CMC Vellore</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="testimonial-card animate-on-scroll" style="transition-delay:0.3s">
+          <div class="stars" aria-label="5 stars">★★★★★</div>
+          <div class="testimonial-quote-icon" aria-hidden="true">"</div>
+          <p class="testimonial-text">I was terrified about my clinical postings. With Radia, I practiced every position 50 times before stepping into the X-ray room. I walked in confident and performed perfectly.</p>
+          <div class="testimonial-author">
+            <div class="author-avatar" style="background:linear-gradient(135deg,#00FF88,#00A86B)" aria-hidden="true">NC</div>
+            <div>
+              <div class="author-name">Nandini Chandra</div>
+              <div class="author-title">1st Year BSc MIT · JIPMER Puducherry</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOR EDUCATORS -->
+  <section id="educators" class="section" aria-label="For Educators and Institutions">
+    <div class="container">
+      <div class="educators-inner">
+        <div class="animate-on-scroll">
+          <div class="section-label">Institutions</div>
+          <h2 class="section-title" style="text-align:left;margin:12px 0 16px">
+            Built for <span class="text-green">Educators</span><br/>Designed for Institutions
+          </h2>
+          <p style="color:var(--muted);font-size:0.92rem;line-height:1.7;max-width:420px;margin-bottom:8px">
+            Partner with Radia to bring AI-powered radiology education to your entire department. Get analytics, custom positioning libraries, and admin dashboards.
+          </p>
+          <ul class="educators-feature-list" aria-label="Educator Features">
+            <li><div class="check-icon" aria-hidden="true">✓</div>Batch student management with class-level analytics and performance reports</li>
+            <li><div class="check-icon" aria-hidden="true">✓</div>Custom position libraries tailored to your department's equipment and protocols</li>
+            <li><div class="check-icon" aria-hidden="true">✓</div>Educator annotation tools — mark up student positioning attempts and share feedback</li>
+            <li><div class="check-icon" aria-hidden="true">✓</div>LMS integration with Moodle, Blackboard, and Google Classroom</li>
+            <li><div class="check-icon" aria-hidden="true">✓</div>Dedicated institutional pricing with volume licenses and API access</li>
+          </ul>
+          <div style="margin-top:32px;display:flex;gap:12px;flex-wrap:wrap">
+            <a href="#" class="btn-primary" style="font-size:0.75rem">Request Institution Demo</a>
+            <a href="#" class="btn-secondary" style="font-size:0.75rem">Download B2B Brochure</a>
+          </div>
+        </div>
+
+        <div class="animate-on-scroll" style="transition-delay:0.2s">
+          <div class="edu-card">
+            <div class="edu-card-title">Institution Impact Report</div>
+            <div class="edu-card-desc">Results from partner institutions after 3 months of Radia deployment across radiology departments.</div>
+            <div class="edu-metrics">
+              <div class="edu-metric">
+                <div class="edu-metric-val">↓ 68%</div>
+                <div class="edu-metric-label">Average repeat exposure rate</div>
+              </div>
+              <div class="edu-metric">
+                <div class="edu-metric-val">↑ 31%</div>
+                <div class="edu-metric-label">Practical assessment scores</div>
+              </div>
+              <div class="edu-metric">
+                <div class="edu-metric-val">↑ 94%</div>
+                <div class="edu-metric-label">Student confidence rating</div>
+              </div>
+              <div class="edu-metric">
+                <div class="edu-metric-val">4.9/5</div>
+                <div class="edu-metric-label">Educator satisfaction score</div>
+              </div>
+            </div>
+            <div style="padding:16px;background:rgba(0,255,136,0.05);border:1px solid rgba(0,255,136,0.12);border-radius:12px">
+              <div style="font-family:var(--font-mono);font-size:0.65rem;color:var(--green-bright);margin-bottom:8px">PARTNER INSTITUTION</div>
+              <div style="font-size:0.88rem;color:var(--white);font-style:italic;line-height:1.6">"Radia is the most impactful educational technology we've adopted in 15 years of radiology training."</div>
+              <div style="font-size:0.75rem;color:var(--muted);margin-top:8px">— HOD Radiology, AIIMS New Delhi</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DOWNLOAD SECTION -->
+  <section id="download" class="section" aria-label="Download Radia">
+    <div class="container" style="position:relative;z-index:1">
+      <div class="animate-on-scroll" style="text-align:center">
+        <div class="section-label" style="margin-bottom:16px">Start Learning Today</div>
+        <h2 class="download-title">
+          Download Radia.<br/><span class="text-green glow-text">Free Forever.</span>
+        </h2>
+        <p class="download-sub">
+          Join 50,000+ radiology students mastering positioning with AI. No credit card. No limits. Just better radiology.
+        </p>
+        <div class="download-buttons">
+          <a href="https://download.radia.app" class="dl-btn dl-ios" target="_blank" rel="noopener" aria-label="Download on the App Store">
+            <span class="dl-btn-icon" aria-hidden="true">🍎</span>
+            <div>
+              <div class="dl-btn-text-sm">DOWNLOAD ON THE</div>
+              <div class="dl-btn-text-lg">App Store</div>
+            </div>
+          </a>
+          <a href="https://download.radia.app" class="dl-btn dl-android" target="_blank" rel="noopener" aria-label="Get it on Google Play">
+            <span class="dl-btn-icon" aria-hidden="true">▶</span>
+            <div>
+              <div class="dl-btn-text-sm">GET IT ON</div>
+              <div class="dl-btn-text-lg">Google Play</div>
+            </div>
+          </a>
+        </div>
+        <div class="qr-section" aria-label="QR Code to download Radia">
+          <div class="qr-box">
+            <div class="qr-placeholder" role="img" aria-label="QR Code for downloading Radia"></div>
+          </div>
+          <span class="qr-label">SCAN TO DOWNLOAD</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer role="contentinfo">
+    <div class="container">
+      <div class="footer-grid">
+        <div>
+          <a href="#" class="nav-logo" style="margin-bottom:12px;display:inline-flex" aria-label="Radia">
+            <div class="nav-logo-icon" aria-hidden="true">Rx</div>
+            <span class="nav-logo-text" style="margin-left:10px">RADIA</span>
+          </a>
+          <p class="footer-brand-desc">
+            Radia is an AI-powered mobile application helping radiology students and professionals master perfect radiographic positioning through real-time AI guidance and intelligent clinical education.
+          </p>
+          <div class="footer-social" role="list" aria-label="Social Media">
+            <a href="#" class="social-btn" aria-label="Twitter / X">𝕏</a>
+            <a href="#" class="social-btn" aria-label="Instagram">In</a>
+            <a href="#" class="social-btn" aria-label="LinkedIn">Li</a>
+            <a href="#" class="social-btn" aria-label="YouTube">▶</a>
+          </div>
+        </div>
+        <div class="footer-col">
+          <h4>Product</h4>
+          <ul>
+            <li><a href="#live-ai">Live AI Positioning</a></li>
+            <li><a href="#ai-tutor">AI Tutor</a></li>
+            <li><a href="#features">Features</a></li>
+            <li><a href="#educators">For Institutions</a></li>
+            <li><a href="#">Pricing</a></li>
+            <li><a href="#">Changelog</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Resources</h4>
+          <ul>
+            <li><a href="#">Position Library</a></li>
+            <li><a href="#">Anatomy Guides</a></li>
+            <li><a href="#">Study Plans</a></li>
+            <li><a href="#">Blog</a></li>
+            <li><a href="#">Webinars</a></li>
+            <li><a href="#">API Docs</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Company</h4>
+          <ul>
+            <li><a href="#">About Us</a></li>
+            <li><a href="#">Careers</a></li>
+            <li><a href="#">Press Kit</a></li>
+            <li><a href="#">Contact</a></li>
+            <li><a href="#">Partners</a></li>
+            <li><a href="#">Research</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p class="footer-copy">© 2025 Radia Technologies Pvt. Ltd. All rights reserved.</p>
+        <nav class="footer-legal" aria-label="Legal">
+          <a href="#">Privacy Policy</a>
+          <a href="#">Terms of Service</a>
+          <a href="#">Cookie Policy</a>
+          <a href="#">HIPAA Compliance</a>
+        </nav>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // CUSTOM CURSOR
+    const cursor = document.getElementById('cursor');
+    const cursorDot = document.getElementById('cursor-dot');
+    let mouseX = 0, mouseY = 0, cursorX = 0, cursorY = 0;
+
+    document.addEventListener('mousemove', (e) => {
+      mouseX = e.clientX; mouseY = e.clientY;
+      cursorDot.style.left = (mouseX - 2.5) + 'px';
+      cursorDot.style.top = (mouseY - 2.5) + 'px';
+    });
+
+    function animateCursor() {
+      cursorX += (mouseX - cursorX) * 0.12;
+      cursorY += (mouseY - cursorY) * 0.12;
+      cursor.style.left = (cursorX - 10) + 'px';
+      cursor.style.top = (cursorY - 10) + 'px';
+      requestAnimationFrame(animateCursor);
+    }
+    animateCursor();
+
+    document.querySelectorAll('a, button, .step-card, .feature-card, .testimonial-card').forEach(el => {
+      el.addEventListener('mouseenter', () => cursor.classList.add('active'));
+      el.addEventListener('mouseleave', () => cursor.classList.remove('active'));
+    });
+
+    // THREE.JS HERO PARTICLE SKELETON — GREEN PALETTE
+    (function initHeroCanvas() {
+      const canvas = document.getElementById('hero-canvas');
+      const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setClearColor(0x000000, 0);
+
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+      camera.position.set(0, 0, 80);
+
+      // Particle field — green spectrum
+      const particleCount = 2000;
+      const positions = new Float32Array(particleCount * 3);
+      const colors = new Float32Array(particleCount * 3);
+
+      for (let i = 0; i < particleCount; i++) {
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos(2 * Math.random() - 1);
+        const r = 40 + Math.random() * 60;
+        positions[i * 3]     = r * Math.sin(phi) * Math.cos(theta);
+        positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+        positions[i * 3 + 2] = r * Math.cos(phi) - 30;
+
+        // Green spectrum: mint → forest → lime → teal
+        const t = Math.random();
+        const variant = Math.floor(Math.random() * 4);
+        if (variant === 0) {
+          // Neon mint
+          colors[i*3]=0.0; colors[i*3+1]=1.0; colors[i*3+2]=0.53;
+        } else if (variant === 1) {
+          // Electric lime
+          colors[i*3]=0.22; colors[i*3+1]=1.0; colors[i*3+2]=0.08;
+        } else if (variant === 2) {
+          // Teal-green
+          colors[i*3]=0.0; colors[i*3+1]=0.79; colors[i*3+2]=0.65;
+        } else {
+          // Forest green
+          colors[i*3]=0.18; colors[i*3+1]=0.42; colors[i*3+2]=0.31;
+        }
+      }
+
+      const particleGeo = new THREE.BufferGeometry();
+      particleGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      particleGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+      const particleMat = new THREE.PointsMaterial({
+        size: 0.4,
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.6,
+        sizeAttenuation: true,
+      });
+      const particles = new THREE.Points(particleGeo, particleMat);
+      scene.add(particles);
+
+      // Skeleton figure — neon green
+      const skeletonGroup = new THREE.Group();
+      const lineMat = new THREE.LineBasicMaterial({ color: 0x00FF88, transparent: true, opacity: 0.35 });
+      const dotMat = new THREE.MeshBasicMaterial({ color: 0x00FF88, transparent: true, opacity: 0.7 });
+
+      function mkLine(pts) {
+        const geo = new THREE.BufferGeometry().setFromPoints(pts.map(p => new THREE.Vector3(...p)));
+        return new THREE.Line(geo, lineMat);
+      }
+      function mkDot(x, y, z, r = 0.6) {
+        const geo = new THREE.SphereGeometry(r, 8, 8);
+        const m = new THREE.Mesh(geo, dotMat);
+        m.position.set(x, y, z);
+        return m;
+      }
+
+      const S = 3.2;
+      skeletonGroup.add(mkLine([[0,10*S,0],[0,0,0],[0,-5*S,0]]));
+      const headGeo = new THREE.SphereGeometry(2.5*S*0.32, 12, 12);
+      const headMesh = new THREE.Mesh(headGeo, new THREE.MeshBasicMaterial({ color: 0x00FF88, wireframe: true, transparent: true, opacity: 0.2 }));
+      headMesh.position.set(0, 11.5*S*0.32, 0);
+      skeletonGroup.add(headMesh);
+      skeletonGroup.add(mkLine([[-9*S*0.32,8*S*0.32,0],[9*S*0.32,8*S*0.32,0]]));
+      skeletonGroup.add(mkLine([[-9*S*0.32,8*S*0.32,0],[-11*S*0.32,0,0]]));
+      skeletonGroup.add(mkLine([[9*S*0.32,8*S*0.32,0],[11*S*0.32,0,0]]));
+      skeletonGroup.add(mkLine([[-11*S*0.32,0,0],[-10*S*0.32,-7*S*0.32,0]]));
+      skeletonGroup.add(mkLine([[11*S*0.32,0,0],[10*S*0.32,-7*S*0.32,0]]));
+      const pelvisGeo = new THREE.TorusGeometry(5*S*0.32, 0.3, 6, 20);
+      pelvisGeo.applyMatrix4(new THREE.Matrix4().makeRotationX(Math.PI / 2));
+      const pelvisMesh = new THREE.Mesh(pelvisGeo, new THREE.MeshBasicMaterial({ color: 0x00FF88, transparent: true, opacity: 0.2 }));
+      pelvisMesh.position.set(0, -5*S*0.32, 0);
+      skeletonGroup.add(pelvisMesh);
+      skeletonGroup.add(mkLine([[-4*S*0.32,-5*S*0.32,0],[-5*S*0.32,-14*S*0.32,0]]));
+      skeletonGroup.add(mkLine([[4*S*0.32,-5*S*0.32,0],[5*S*0.32,-14*S*0.32,0]]));
+      skeletonGroup.add(mkLine([[-5*S*0.32,-14*S*0.32,0],[-4.5*S*0.32,-22*S*0.32,0]]));
+      skeletonGroup.add(mkLine([[5*S*0.32,-14*S*0.32,0],[4.5*S*0.32,-22*S*0.32,0]]));
+      [
+        [0, 11.5*S*0.32, 0],[0, 8*S*0.32, 0],[0, 4*S*0.32, 0],[0, 0, 0],
+        [-9*S*0.32, 8*S*0.32, 0],[9*S*0.32, 8*S*0.32, 0],
+        [-5*S*0.32, -14*S*0.32, 0],[5*S*0.32, -14*S*0.32, 0],
+      ].forEach(p => skeletonGroup.add(mkDot(...p)));
+
+      skeletonGroup.position.set(18, 0, 0);
+      scene.add(skeletonGroup);
+
+      // Scan rings — green
+      const ringGeo = new THREE.TorusGeometry(14, 0.1, 6, 60);
+      const ringMat = new THREE.MeshBasicMaterial({ color: 0x00FF88, transparent: true, opacity: 0.15 });
+      const ring1 = new THREE.Mesh(ringGeo, ringMat);
+      const ring2 = new THREE.Mesh(
+        new THREE.TorusGeometry(20, 0.08, 6, 60),
+        new THREE.MeshBasicMaterial({ color: 0x00A86B, transparent: true, opacity: 0.1 })
+      );
+      ring1.position.set(18, 0, 0);
+      ring2.position.set(18, 0, 0);
+      scene.add(ring1, ring2);
+
+      let time = 0;
+      function animate() {
+        requestAnimationFrame(animate);
+        time += 0.005;
+        skeletonGroup.rotation.y = time * 0.3;
+        ring1.rotation.z = time * 0.5;
+        ring2.rotation.z = -time * 0.3;
+        ring1.rotation.x = Math.sin(time * 0.4) * 0.2;
+        ring2.rotation.x = Math.cos(time * 0.3) * 0.15;
+        particles.rotation.y = time * 0.04;
+        particles.rotation.x = time * 0.02;
+        renderer.render(scene, camera);
+      }
+      animate();
+
+      window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+
+      document.addEventListener('mousemove', (e) => {
+        const mx = (e.clientX / window.innerWidth - 0.5) * 10;
+        const my = (e.clientY / window.innerHeight - 0.5) * -8;
+        camera.position.x += (mx - camera.position.x) * 0.04;
+        camera.position.y += (my - camera.position.y) * 0.04;
+      });
+    })();
+
+    // NAVBAR SCROLL BEHAVIOR
+    const navbar = document.getElementById('navbar');
+    const backTop = document.getElementById('back-top');
+    window.addEventListener('scroll', () => {
+      if (window.scrollY > 60) {
+        navbar.classList.add('scrolled');
+        backTop.classList.add('visible');
+      } else {
+        navbar.classList.remove('scrolled');
+        backTop.classList.remove('visible');
+      }
+    });
+
+    // MOBILE MENU
+    const mobileBtn = document.getElementById('mobile-menu-btn');
+    const mobileMenu = document.getElementById('mobile-menu');
+    mobileBtn.addEventListener('click', () => mobileMenu.classList.toggle('open'));
+    mobileBtn.addEventListener('keypress', (e) => { if (e.key === 'Enter') mobileMenu.classList.toggle('open'); });
+    mobileMenu.querySelectorAll('a').forEach(a => a.addEventListener('click', () => mobileMenu.classList.remove('open')));
+
+    // SCROLL ANIMATIONS
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => { if (entry.isIntersecting) entry.target.classList.add('visible'); });
+    }, { threshold: 0.1, rootMargin: '0px 0px -60px 0px' });
+    document.querySelectorAll('.animate-on-scroll').forEach(el => observer.observe(el));
+
+    // COUNTER ANIMATION
+    function animateCounter(el) {
+      const target = parseInt(el.getAttribute('data-target'));
+      const duration = 2000;
+      const start = performance.now();
+      function update(now) {
+        const elapsed = now - start;
+        const progress = Math.min(elapsed / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        const current = Math.round(eased * target);
+        if (target >= 10000) el.textContent = (current / 1000).toFixed(0) + 'K+';
+        else if (target === 98 || target === 68) el.textContent = current + '%';
+        else el.textContent = current + '+';
+        if (progress < 1) requestAnimationFrame(update);
+      }
+      requestAnimationFrame(update);
+    }
+    const counterObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) { animateCounter(entry.target); counterObserver.unobserve(entry.target); }
+      });
+    }, { threshold: 0.5 });
+    document.querySelectorAll('[data-target]').forEach(el => counterObserver.observe(el));
+
+    // CHAT DEMO
+    const chatResponses = {
+      default: [{ q: null, a: "That's a great radiology question! For any projection, the key principles are: correct patient positioning, accurate CR direction, adequate collimation, and appropriate exposure technique. Would you like specifics on a particular view?", citation: "Bontrager & Lampignano · Textbook of Radiographic Positioning" }],
+      "pa chest": { a: "For a <strong>PA Chest projection</strong>: Patient stands facing the IR, chin rested on top, shoulders rolled forward to clear scapulae from lung fields. CR is directed horizontally to T7 level. Exposure on <strong>full inspiration</strong>. 10 posterior ribs should be visible on a diagnostic image.", citation: "Merrill's Atlas of Radiographic Positions · Vol. 1, Ch. 10" },
+      "scaphoid": { a: "Scaphoid fractures are notoriously occult on standard PA wrist views. The dedicated <strong>scaphoid series</strong> includes: PA with ulnar deviation, lateral, PA oblique, and the Stecher view (PA with CR angled 20° proximally). MRI remains gold standard if X-ray is negative with clinical suspicion.", citation: "Bontrager · 9th Ed. Ch. 4 · ACR Appropriateness Criteria 2023" },
+      "opg": { a: "OPG (Orthopantomogram) positioning criteria: Patient stands/sits with Frankfort Plane horizontal, midsagittal plane vertical, tongue on palate, teeth in occlusion in the bite block. Spine should not be superimposed on the anterior teeth. Ghost shadows of the spine indicate incorrect positioning.", citation: "White & Pharoah · Oral Radiology · 7th Ed. Ch. 8" }
+    };
+
+    function sendSuggestion(btn) {
+      document.getElementById('chat-input').value = btn.textContent;
+      sendChat();
+    }
+
+    function sendChat() {
+      const input = document.getElementById('chat-input');
+      const val = input.value.trim();
+      if (!val) return;
+      const messages = document.getElementById('chat-messages');
+
+      const userMsg = document.createElement('div');
+      userMsg.className = 'msg msg-user';
+      userMsg.innerHTML = `<div class="msg-avatar user-av" aria-hidden="true">You</div><div class="msg-bubble">${escapeHtml(val)}</div>`;
+      messages.appendChild(userMsg);
+      input.value = '';
+      messages.scrollTop = messages.scrollHeight;
+
+      const typing = document.createElement('div');
+      typing.className = 'msg msg-ai';
+      typing.innerHTML = `
+        <div class="msg-avatar ai-av" aria-hidden="true">Rx</div>
+        <div class="msg-bubble" style="display:flex;gap:5px;align-items:center">
+          <span style="animation:blink 0.8s 0s infinite;width:6px;height:6px;background:var(--green-bright);border-radius:50%;display:inline-block"></span>
+          <span style="animation:blink 0.8s 0.2s infinite;width:6px;height:6px;background:var(--green-bright);border-radius:50%;display:inline-block"></span>
+          <span style="animation:blink 0.8s 0.4s infinite;width:6px;height:6px;background:var(--green-bright);border-radius:50%;display:inline-block"></span>
+        </div>`;
+      messages.appendChild(typing);
+      messages.scrollTop = messages.scrollHeight;
+
+      const key = val.toLowerCase();
+      let response = chatResponses.default[0];
+      for (const [k, v] of Object.entries(chatResponses)) {
+        if (k !== 'default' && key.includes(k)) { response = v; break; }
+      }
+
+      setTimeout(() => {
+        messages.removeChild(typing);
+        const aiMsg = document.createElement('div');
+        aiMsg.className = 'msg msg-ai';
+        aiMsg.style.animation = 'fadeInUp 0.4s ease';
+        aiMsg.innerHTML = `
+          <div class="msg-avatar ai-av" aria-hidden="true">Rx</div>
+          <div class="msg-bubble">
+            ${response.a}
+            ${response.citation ? `<div class="msg-citation">📚 ${response.citation}</div>` : ''}
+          </div>`;
+        messages.appendChild(aiMsg);
+        messages.scrollTop = messages.scrollHeight;
+      }, 1200);
+    }
+
+    function escapeHtml(text) {
+      return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    // SMOOTH ANCHOR SCROLLING
+    document.querySelectorAll('a[href^="#"]').forEach(a => {
+      a.addEventListener('click', (e) => {
+        const href = a.getAttribute('href');
+        if (href === '#') return;
+        const target = document.querySelector(href);
+        if (target) { e.preventDefault(); target.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+      });
+    });
+
+    // PARALLAX HERO
+    window.addEventListener('scroll', () => {
+      const scrolled = window.scrollY;
+      const heroContent = document.querySelector('.hero-content');
+      if (heroContent) {
+        heroContent.style.transform = `translateY(${scrolled * 0.3}px)`;
+        heroContent.style.opacity = 1 - scrolled / 700;
+      }
+    });
+  </script>
+</body>
+</html>
